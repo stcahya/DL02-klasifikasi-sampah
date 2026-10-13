@@ -44,17 +44,56 @@ class FileListDS(Dataset):
         return self.tf(Image.open(self.root / rel).convert("RGB")), cls
 
 
-def load_pretrained(model):
-    """Salin bobot ImageNet ke model dari get_model(), sisakan head.
+def _imagenet_resnet18():
+    return models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1).state_dict()
 
-    Wajib disesuaikan kalau arsitektur di submission/model.py diganti -- asersi di bawah
-    yang jaga kalau lupa.
+
+def _imagenet_effnet_b0():
+    import timm  # opsional: hanya perlu kalau submission/model.py memang memakainya
+    return timm.create_model("efficientnet_b0", pretrained=True).state_dict()
+
+
+# nama submodule di submission/model.py -> sumber bobot ImageNet-nya
+BACKBONES = {"resnet": _imagenet_resnet18, "effnet": _imagenet_effnet_b0}
+
+
+def _pretrained_targets(model):
+    """(prefix, modul, sumber) untuk model resnet polos, atau tiap anak yang namanya dikenal."""
+    if hasattr(model, "layer4") and hasattr(model, "fc"):
+        yield "", model, BACKBONES["resnet"]
+    for name, mod in model.named_children():
+        if name in BACKBONES:
+            yield f"{name}.", mod, BACKBONES[name]
+
+
+def load_pretrained(model):
+    """Salin bobot ImageNet ke tiap backbone yang dikenal di dalam model; head tetap random.
+
+    Backbone dikenali dari nama submodule (lihat BACKBONES) -- jadi arsitektur di
+    submission/model.py bebas diganti/ditambah tanpa mengedit fungsi ini, asalkan
+    submodule-nya bernama salah satu kunci di BACKBONES. Tensor yang bentuknya beda
+    (mis. head 1000 kelas vs 5 kelas) sengaja dilewati; asersi di bawah memastikan tidak
+    ada layer lain yang tertinggal random.
     """
-    pre = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1).state_dict()
-    missing, unexpected = model.load_state_dict(
-        {k: v for k, v in pre.items() if not k.startswith("fc.")}, strict=False)
+    state, dipakai, dilewati = {}, [], []
+    for prefix, mod, sumber in _pretrained_targets(model):
+        own = mod.state_dict()
+        for k, v in sumber().items():
+            if k in own and own[k].shape == v.shape:
+                state[prefix + k] = v
+            else:
+                dilewati.append(prefix + k)
+        dipakai.append(prefix or "(model)")
+    if not dipakai:
+        raise SystemExit(
+            f"tidak ada backbone yang dikenal di {list(dict(model.named_children()))} "
+            f"-- tambahkan ke BACKBONES di train.py")
+    missing, unexpected = model.load_state_dict(state, strict=False)
     assert not unexpected, f"bobot ImageNet nggak cocok sama arsitektur: {unexpected[:3]}"
-    assert all(k.startswith("fc.") for k in missing), f"layer tak terisi: {missing[:3]}"
+    sisa = [k for k in missing if k not in dilewati]
+    assert not sisa, f"layer tak terisi: {sisa[:3]}"
+    print(f"pretrained: {', '.join(dipakai)} | {len(state)} tensor dimuat | "
+          f"{len(dilewati)} tensor head dilewati (random)")
 
 
 def train_one(model, dl, opt, lossf, device, sched=None):

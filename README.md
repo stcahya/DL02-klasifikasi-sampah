@@ -51,7 +51,7 @@ submission/
   requirements.txt  # versi paket yang dipasang asisten di environment terpisah
 evaluate.py         # salinan skrip evaluasi resmi (dipakai asisten)
 train.py            # pelatihan pada holdout beku splits/val.txt, tulis my_val/ + runs/
-notebooks/          # train_colab.ipynb: runner Colab/Kaggle (clone, cek split, latih, uji, unduh submission)
+notebooks/          # train_colab.ipynb: runner Colab (clone, cek split, latih di GPU, uji, unduh submission)
 make_split.py       # bikin/periksa holdout beku 15% stratified (seed 42)
 train_baseline.py   # baseline dari asisten: split dibuat sendiri, checkpoint dipilih pakai akurasi
 splits/val.txt      # 413 path relatif holdout beku — jangan diubah
