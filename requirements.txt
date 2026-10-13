@@ -1,0 +1,6 @@
+# Versi yang terbukti jalan untuk submission ini (Python 3.12.4, Windows, CPU).
+# Submission hanya memakai torchvision (ResNet-18); timm tidak dibutuhkan.
+torch==2.14.1
+torchvision==0.29.1
+numpy==2.2.2
+pillow==11.1.0
