@@ -20,14 +20,17 @@ Deep Learning (IF25-40401) · Teknik Informatika ITERA · Semester Ganjil 2026/2
 
 | Putaran | Commit | Macro-F1 (split validasi lokal) | Macro-F1 (diumumkan asisten) |
 |---------|--------|----------------------------------|------------------------------|
-| Preview 1 (14 Okt) | | | |
+| Preview 1 (14 Okt) | `a082efe` | 0,9373 | (menunggu asisten) |
 | Preview 2 (21 Okt) | | | |
 | Final (25 Okt)     | | | |
 
 Catatan eksperimen singkat (apa yang dicoba, apa yang berhasil/gagal):
 
-- Smoke 1 epoch (CPU, Ryzen 5 6600H): macro-F1 **0.8794** pada 413 gambar val, 163 s/epoch. Konfusi terbesar `saset_kemasan → styrofoam` (10 dari 101).
+- Run penuh 15 epoch ResNet-18 (CPU): macro-F1 lokal **0,9373** (epoch terbaik = 11; epoch 15 = 0,9261), 150–212 s/epoch. `evaluate.py` pada `my_val` memberi angka **identik** (0,9373) dalam 23 detik untuk 413 gambar — metrik internal `train.py` sama dengan metrik grader.
+- Sisa error 26 dari 413; terbanyak `kertas_kardus → styrofoam` (4) dan `kertas_kardus` sendiri adalah kelas terlemah (F1 0,9159 vs styrofoam 0,9510).
+- Jadwal LR: `--epochs 1` (cosine T_max=1, LR jatuh ke 0 dalam satu epoch) sudah 0,8794, sementara epoch 1 dari run 15 epoch cuma 0,8494 (LR masih tinggi) — cosine panjang baru matang di akhir.
 - Gagal: `--workers 4` → `MemoryError` di worker DataLoader (RAM 15.2 GB, sisa 2.5 GB saat itu; tiap worker ±400 MB). Fix: `--workers 2`.
+- Angka lokal (413 gambar) **tidak bisa dibandingkan langsung** dengan 0,92 milik baseline starter di validation set tersembunyi (±740 gambar) — pembanding resminya kolom ketiga tabel di atas.
 
 ## Cara Reproduksi
 
