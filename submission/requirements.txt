@@ -1,7 +1,5 @@
-# Versi yang terbukti jalan untuk submission ini (Python 3.12.4, Windows, CPU).
-# Submission hanya memakai torchvision (ResNet-18); timm tidak dibutuhkan.
-torch==2.14.1
-torchvision==0.29.1
+# Paket TAMBAHAN yang harus dipasang asisten di environment terpisah.
+# Paket dasar (torch, torchvision, timm, pillow, numpy) sudah tersedia di env asisten,
+# jadi sengaja tidak dipin di sini: memaksa torch versi kita di env mereka hanya menambah
+# titik gagal tanpa manfaat. Versi env lokal kita ada di requirements.txt di root repo.
 timm==1.0.30
-numpy==2.2.2
-pillow==11.1.0

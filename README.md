@@ -38,7 +38,7 @@ Catatan eksperimen singkat (apa yang dicoba, apa yang berhasil/gagal):
 ## Cara Reproduksi
 
 ```bash
-pip install -r submission/requirements.txt
+pip install -r requirements.txt  # env lokal tim (torch/torchvision/timm/pillow/numpy versi terpin)
 python make_split.py --check     # verifikasi holdout beku: 413 val / 2340 train, sha256 kanonik b56ef897...
 python train.py                  # ResNet-18, 15 epoch (CPU ±45 menit) -> submission/model.pth + my_val/ + runs/
 python evaluate.py --submission ./submission --data ./my_val
@@ -73,7 +73,8 @@ Split **tidak** dibuat ulang saat pelatihan — `make_split.py --check` memastik
 submission/
   model.py          # arsitektur fusi (ResNet-18 + EfficientNet-B0) + TTA; get_model() tanpa bobot
   model.pth         # state_dict fusi 58,3 MB (batas teknis 500 MB; >100 MB wajib GitHub Release/LFS)
-  requirements.txt  # pin versi paket yang dipasang asisten (termasuk timm)
+  requirements.txt  # paket TAMBAHAN untuk asisten (timm); paket dasar sudah ada di env mereka
+requirements.txt    # env lokal tim (torch/torchvision/timm/numpy/pillow versi terpin)
 evaluate.py         # salinan skrip evaluasi resmi (dipakai asisten)
 train.py            # pelatihan pada holdout beku splits/val.txt; --model untuk melatih kandidat
 make_split.py       # bikin/periksa holdout beku 15% stratified (seed 42)

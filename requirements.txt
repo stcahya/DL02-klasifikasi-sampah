@@ -1,0 +1,8 @@
+# Environment LOKAL yang dipakai kelompok (Python 3.12.4, Windows, CPU) untuk melatih
+# dan menguji submission dengan evaluate.py. Bukan file yang dibaca asisten --
+# untuk asisten cukup submission/requirements.txt (paket tambahan saja).
+torch==2.14.1
+torchvision==0.29.1
+timm==1.0.30
+numpy==2.2.2
+pillow==11.1.0
