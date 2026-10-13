@@ -1,12 +1,15 @@
-"""Contoh submission: ResNet-18 dengan head 5 kelas.
+"""Submission Kelompok 12 — ResNet-18 pretrained ImageNet, fine-tune 15 epoch.
 
-Ganti isi file ini dengan arsitektur kelompok Anda. Aturan:
-  - get_model() hanya MEMBANGUN arsitektur (jangan mengunduh bobot pretrained di sini,
-    jangan memuat model.pth di sini — evaluate.py yang memuatnya).
-  - get_transform() harus SAMA dengan transform validasi saat Anda melatih model.
-  - Output model: logits [batch, 5], urutan kelas:
-      0 botol_plastik, 1 gelas_plastik, 2 kertas_kardus, 3 saset_kemasan, 4 styrofoam
-    (urutan alfabetis — sama dengan torchvision.datasets.ImageFolder).
+Ini artefak Preview 1 (commit a082efe): macro-F1 0,9373 pada holdout beku
+splits/val.txt (413 gambar). Arsitekturnya sengaja tetap ResNet-18 supaya bisa
+dibandingkan langsung dengan baseline resmi asisten (starter, 8 epoch, ±0,92 pada
+validation set tersembunyi).
+
+Kontrak submission:
+  - get_model() hanya MEMBANGUN arsitektur (tanpa mengunduh bobot, tanpa memuat model.pth).
+  - get_transform() = transform validasi saat pelatihan (Resize 256 -> CenterCrop 224,
+    normalisasi ImageNet); harus identik dengan yang dipakai train.py dan grader.
+  - Output forward: logits [batch, 5], urutan kelas alfabetis milik evaluate.py.
 """
 import torch.nn as nn
 from torchvision import models, transforms

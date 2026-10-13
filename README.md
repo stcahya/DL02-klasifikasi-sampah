@@ -31,6 +31,7 @@ Catatan eksperimen singkat (apa yang dicoba, apa yang berhasil/gagal):
 - Jadwal LR: `--epochs 1` (cosine T_max=1, LR jatuh ke 0 dalam satu epoch) sudah 0,8794, sementara epoch 1 dari run 15 epoch cuma 0,8494 (LR masih tinggi) — cosine panjang baru matang di akhir.
 - Gagal: `--workers 4` → `MemoryError` di worker DataLoader (RAM 15.2 GB, sisa 2.5 GB saat itu; tiap worker ±400 MB). Fix: `--workers 2`.
 - Angka lokal (413 gambar) **tidak bisa dibandingkan langsung** dengan 0,92 milik baseline starter di validation set tersembunyi (±740 gambar) — pembanding resminya kolom ketiga tabel di atas.
+- Kandidat berikutnya: **ensemble ResNet-18 + EfficientNet-B0 (+hflip TTA)** di `experiments/ensemble_model.py`, dilatih tanpa menyentuh `submission/` dengan `python train.py --model experiments/ensemble_model.py --out runs/ens_20ep.pth`. Kontraknya sudah diverifikasi: 15,2M parameter → `model.pth` 58,3 MB, 0,19 s/gambar dengan TTA (≈2,3 menit untuk ±740 gambar, batas 15 menit), `strict=True` lolos. Dipromosikan ke `submission/` **hanya kalau** macro-F1-nya di `my_val` melewati 0,9373.
 
 ## Cara Reproduksi
 
@@ -54,7 +55,9 @@ submission/
   requirements.txt  # versi paket yang dipasang asisten di environment terpisah
 evaluate.py         # salinan skrip evaluasi resmi (dipakai asisten)
 train.py            # pelatihan pada holdout beku splits/val.txt, tulis my_val/ + runs/
-notebooks/          # train_colab.ipynb: runner Colab (clone, cek split, latih di GPU, uji, unduh submission)
+notebooks/          # train_colab.ipynb: runner Colab (clone, cek split, latih kandidat di GPU, uji, unduh bobot)
+experiments/
+  ensemble_model.py # KANDIDAT: ensemble ResNet-18 + EfficientNet-B0 (+TTA) — dilatih lewat `--model`, belum dipromosikan
 make_split.py       # bikin/periksa holdout beku 15% stratified (seed 42)
 train_baseline.py   # baseline dari asisten: split dibuat sendiri, checkpoint dipilih pakai akurasi
 splits/val.txt      # 413 path relatif holdout beku — jangan diubah

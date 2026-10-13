@@ -3,17 +3,22 @@
     python train.py                        # 15 epoch -> submission/model.pth
     python train.py --epochs 20 --lr 2e-4
     python train.py --scratch              # tanpa bobot ImageNet
+    python train.py --model experiments/ensemble_model.py --out runs/ens_20ep.pth
+                                           # latih KANDIDAT tanpa menyentuh submission/
 
 Split TIDAK dibuat di sini. `splits/val.txt` adalah holdout beku (15%, stratified, seed 42)
 yang dipakai bareng-bareng; jangan diubah, kalau nggak angka antar-anggota nggak bisa
 dibandingkan.
 
 Metrik validasi diambil dari evaluate.py, jadi angkanya identik dengan yang dihitung asisten.
-Arsitektur dan transform validasi diambil dari submission/model.py -- satu sumber kebenaran.
+Arsitektur dan transform validasi diambil dari file yang ditunjuk `--model` (default
+submission/model.py), jadi satu model file tetap satu sumber kebenaran.
 """
 import argparse
+import importlib.util
 import json
 import shutil
+import sys
 import time
 from pathlib import Path
 
@@ -24,9 +29,27 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import models, transforms
 
 from evaluate import CLASSES, metrics  # noqa: E402  (urutan kelas & metrik = milik grader)
-from submission.model import get_model, get_transform  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
+
+
+def load_model_module(path):
+    """Impor file model (get_model/get_transform) dari path apa pun, termasuk kandidat.
+
+    Folder file-nya ikut masuk sys.path supaya model.py boleh mengimpor file pendukung
+    di sebelahnya -- sama seperti yang dilakukan evaluate.py.
+    """
+    p = Path(path).resolve()
+    if not p.is_file():
+        raise SystemExit(f"[GAGAL] file model tidak ditemukan: {p}")
+    sys.path.insert(0, str(p.parent))
+    spec = importlib.util.spec_from_file_location("model_candidate", p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    for fn in ("get_model", "get_transform"):
+        if not hasattr(mod, fn):
+            raise SystemExit(f"[GAGAL] {p} tidak mendefinisikan {fn}()")
+    return mod
 
 
 class FileListDS(Dataset):
@@ -138,6 +161,9 @@ def main():
     ap.add_argument("--data", default="train")
     ap.add_argument("--split", default="splits/val.txt")
     ap.add_argument("--out", default="submission/model.pth")
+    ap.add_argument("--model", default="submission/model.py",
+                    help="file berisi get_model()/get_transform() yang dilatih "
+                         "(default: submission yang sedang dipakai; kandidat taruh di experiments/)")
     ap.add_argument("--epochs", type=int, default=15)
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--wd", type=float, default=1e-4)
@@ -148,6 +174,9 @@ def main():
     ap.add_argument("--patience", type=int, default=5, help="berhenti kalau val tak naik N epoch")
     ap.add_argument("--scratch", action="store_true")
     a = ap.parse_args()
+    mod = load_model_module(a.model)
+    get_model, get_transform = mod.get_model, mod.get_transform
+    print(f"model file: {Path(a.model).resolve()}")
 
     torch.manual_seed(a.seed)
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -172,6 +201,9 @@ def main():
     print(f"train: {len(tr_dl)} batch/epoch")
 
     model = get_model().to(device)
+    if hasattr(model, "tta"):  # model ensemble: TTA trik inferensi, melatih dengannya = 2x biaya
+        model.tta = False
+        print("TTA dimatikan selama pelatihan (grader menyalakannya lewat get_model())")
     if not a.scratch:
         load_pretrained(model)
 
