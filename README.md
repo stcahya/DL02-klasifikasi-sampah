@@ -1,4 +1,4 @@
-# Studio 2 — Klasifikasi Sampah · Kelompok <NOMOR/NAMA KELOMPOK>
+# Studio 2 — Klasifikasi Sampah · Kelompok <12>
 
 Deep Learning (IF25-40401) · Teknik Informatika ITERA · Semester Ganjil 2026/2027
 
@@ -8,7 +8,6 @@ Deep Learning (IF25-40401) · Teknik Informatika ITERA · Semester Ganjil 2026/2
 |----|--------------|-----|------------------|
 | 1  |Stevanus Cahya Anggara|123140038|                  |
 | 2  |Annisa Al-Qoriah|123140030|                  |
-| 3  |              |     |                  |
 
 ## Ringkasan Pendekatan
 
