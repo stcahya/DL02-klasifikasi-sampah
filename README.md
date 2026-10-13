@@ -32,7 +32,7 @@ Catatan eksperimen singkat (apa yang dicoba, apa yang berhasil/gagal):
 ## Cara Reproduksi
 
 ```bash
-pip install -r requirements.txt
+pip install -r submission/requirements.txt
 python make_split.py --check    # verifikasi holdout beku: 413 val / 2340 train, sha256 kanonik b56ef897...
 python train.py                 # 15 epoch (CPU ±45 menit) -> submission/model.pth + my_val/ + runs/
 python evaluate.py --submission ./submission --data ./my_val
@@ -48,13 +48,13 @@ Split **tidak** dibuat ulang saat pelatihan — `make_split.py --check` memastik
 submission/
   model.py          # get_model() (arsitektur, tanpa bobot) + get_transform()
   model.pth         # state_dict model terbaik (batas teknis 500 MB; >100 MB wajib GitHub Release/LFS)
+  requirements.txt  # versi paket yang dipasang asisten di environment terpisah
 evaluate.py         # salinan skrip evaluasi resmi (dipakai asisten)
 train.py            # pelatihan pada holdout beku splits/val.txt, tulis my_val/ + runs/
 notebooks/          # train_colab.ipynb: runner Colab/Kaggle (clone, cek split, latih, uji, unduh submission)
 make_split.py       # bikin/periksa holdout beku 15% stratified (seed 42)
 train_baseline.py   # baseline dari asisten: split dibuat sendiri, checkpoint dipilih pakai akurasi
 splits/val.txt      # 413 path relatif holdout beku — jangan diubah
-requirements.txt    # versi paket yang dipakai submission
 my_val/             # tidak di-commit: salinan 413 gambar val untuk evaluate.py
 runs/               # tidak di-commit: best.pth (tiap perbaikan) + last.json (metrik)
 ```
