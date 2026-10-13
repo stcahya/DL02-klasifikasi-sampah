@@ -47,9 +47,10 @@ Split **tidak** dibuat ulang saat pelatihan — `make_split.py --check` memastik
 ```
 submission/
   model.py          # get_model() (arsitektur, tanpa bobot) + get_transform()
-  model.pth         # state_dict model terbaik (<100 MB)
+  model.pth         # state_dict model terbaik (batas teknis 500 MB; >100 MB wajib GitHub Release/LFS)
 evaluate.py         # salinan skrip evaluasi resmi (dipakai asisten)
 train.py            # pelatihan pada holdout beku splits/val.txt, tulis my_val/ + runs/
+notebooks/          # train_colab.ipynb: runner Colab/Kaggle (clone, cek split, latih, uji, unduh submission)
 make_split.py       # bikin/periksa holdout beku 15% stratified (seed 42)
 train_baseline.py   # baseline dari asisten: split dibuat sendiri, checkpoint dipilih pakai akurasi
 splits/val.txt      # 413 path relatif holdout beku — jangan diubah
