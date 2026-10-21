@@ -34,6 +34,7 @@ Catatan eksperimen singkat (apa yang dicoba, apa yang berhasil/gagal):
 - **Catatan kejujuran soal noise**: selisih antar-kandidat teratas hanya 1–3 gambar dari 413, jadi tidak semuanya signifikan secara statistik. Yang membuat fusi dipertahankan adalah arahnya konsisten (tren monoton terhadap gerbang) ditambah bukti bahwa fusi memang mengerjakan hal besar: dua cabang lemah (0,8666 & 0,8698) digabung 0,5/0,5 menghasilkan **0,9410** (+0,07 dari cabang terbaiknya).
 - **Gagal / terpelajar**: (1) ensemble dua backbone dilatih bersama — cabang jadi lemah, jalan keluarnya late fusion; (2) `patience` dihitung per **epoch** sementara `bs 64` cuma 36 langkah/epoch (setengah run lokal) → run berhenti di epoch 8 dengan puncak di epoch 3, jadi `EPOCHS`/`patience` harus diskalakan ke jumlah langkah; (3) `--workers 4` → `MemoryError` (RAM 15,2 GB, sisa 2,5 GB; tiap worker ±400 MB) → pakai `--workers 2`, dan untuk model ensemble lokal lebih aman `--workers 0`; (4) TTA menolong model kuat (+0,003 pada ResNet-18) tapi memerosotkan ensemble yang cabangnya lemah (0,9410 → 0,8869 di percobaan pertama).
 - **Berikutnya (Preview 2)**: latih EfficientNet-B0 sendirian dengan resep penuh (`experiments/effnet_model.py`, 25 epoch) supaya cabang keduanya sekelas ResNet-18, lalu fusi ulang — kalau cabang kedua naik ke ±0,93, fusinya diharapkan melewati 0,9474.
+- **Kandidat baru — ConvNeXt-Tiny + regularisasi modern** (`experiments/convnext_model.py`, dilatih lewat notebook Colab): backbone keluarga ketiga dengan **dropout 0,3 di head** dan **stochastic depth 0,1**, dilatih dengan flag optimasi baru di `train.py` — `--randaugment` (RandAugment 2 op magnitude 9 + crop lebih agresif + erasing p=0,5), `--mixup 0.2` (Mixup+CutMix, loss jadi SoftTargetCrossEntropy), dan `--warmup 3` (linear warmup 3 epoch lalu cosine decay per batch; scheduler lama `CosineAnnealingLR` dibiarkan sebagai default agar resep lama reproducible). Dipakai kalau sendirian > 0,9474, atau jadi cabang ketiga/pengganti cabang effnet di fusi. Catatan ukuran: ±109 MB, promosi ke submission wajib lewat GitHub Release/LFS.
 
 ## Cara Reproduksi
 
@@ -76,13 +77,15 @@ submission/
   requirements.txt  # paket TAMBAHAN untuk asisten (timm); paket dasar sudah ada di env mereka
 requirements.txt    # env lokal tim (torch/torchvision/timm/numpy/pillow versi terpin)
 evaluate.py         # salinan skrip evaluasi resmi (dipakai asisten)
-train.py            # pelatihan pada holdout beku splits/val.txt; --model untuk melatih kandidat
+train.py            # pelatihan pada holdout beku splits/val.txt; --model untuk melatih kandidat;
+                    #   flag optimasi opsional: --randaugment, --mixup A, --warmup N
 make_split.py       # bikin/periksa holdout beku 15% stratified (seed 42)
 notebooks/
   train_colab.ipynb # runner Colab: clone repo, cek dataset & split, latih kandidat di GPU, unduh bobot
 experiments/
   ensemble_model.py # arsitektur fusi (dipakai submission) + resep latihnya
   effnet_model.py   # EfficientNet-B0 sendirian — cabang kedua untuk fusi
+  convnext_model.py # ConvNeXt-Tiny + dropout/stochastic depth — cabang ketiga (calon)
   fuse.py           # gabungkan dua checkpoint jadi satu state_dict fusi (tanpa pelatihan)
 train_baseline.py   # baseline dari asisten: split dibuat sendiri, checkpoint dipilih pakai akurasi
 splits/val.txt      # 413 path relatif holdout beku — jangan diubah

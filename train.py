@@ -5,6 +5,10 @@
     python train.py --scratch              # tanpa bobot ImageNet
     python train.py --model experiments/ensemble_model.py --out runs/ens_20ep.pth
                                            # latih KANDIDAT tanpa menyentuh submission/
+    python train.py --model experiments/convnext_model.py --out runs/convnext_30ep.pth \
+        --epochs 30 --lr 2e-4 --randaugment --mixup 0.2 --warmup 3
+                                           # optimasi ekstra: RandAugment + Mixup/CutMix
+                                           # + warmup-cosine per batch
 
 Split TIDAK dibuat di sini. `splits/val.txt` adalah holdout beku (15%, stratified, seed 42)
 yang dipakai bareng-bareng; jangan diubah, kalau nggak angka antar-anggota nggak bisa
@@ -17,6 +21,7 @@ submission/model.py), jadi satu model file tetap satu sumber kebenaran.
 import argparse
 import importlib.util
 import json
+import math
 import shutil
 import sys
 import time
@@ -76,8 +81,14 @@ def _imagenet_effnet_b0():
     return timm.create_model("efficientnet_b0", pretrained=True).state_dict()
 
 
+def _imagenet_convnext_tiny():
+    import timm
+    return timm.create_model("convnext_tiny", pretrained=True).state_dict()
+
+
 # nama submodule di submission/model.py -> sumber bobot ImageNet-nya
-BACKBONES = {"resnet": _imagenet_resnet18, "effnet": _imagenet_effnet_b0}
+BACKBONES = {"resnet": _imagenet_resnet18, "effnet": _imagenet_effnet_b0,
+             "convnext": _imagenet_convnext_tiny}
 
 
 def _pretrained_targets(model):
@@ -119,11 +130,13 @@ def load_pretrained(model):
           f"{len(dilewati)} tensor head dilewati (random)")
 
 
-def train_one(model, dl, opt, lossf, device, sched=None):
+def train_one(model, dl, opt, lossf, device, sched=None, mixup=None):
     model.train()
     tot = 0.0
     for x, y in dl:
         x, y = x.to(device), y.to(device)
+        if mixup is not None:
+            x, y = mixup(x, y)  # y jadi soft target -> lossf wajib SoftTargetCrossEntropy
         opt.zero_grad(set_to_none=True)
         loss = lossf(model(x), y)
         loss.backward()
@@ -172,6 +185,15 @@ def main():
                     help="proses loader; naikkan kalau RAM lega (tiap worker ~400MB)")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--patience", type=int, default=5, help="berhenti kalau val tak naik N epoch")
+    ap.add_argument("--randaugment", action="store_true",
+                    help="ganti augmentasi baseline dengan RandAugment (2 op, magnitude 9) "
+                         "+ jitter lebih kuat; untuk backbone modern yang butuh augmentasi berat")
+    ap.add_argument("--mixup", type=float, default=0.0, metavar="ALPHA",
+                    help="alpha Mixup+CutMix via timm (0 = mati); loss otomatis ganti ke "
+                         "SoftTargetCrossEntropy")
+    ap.add_argument("--warmup", type=int, default=0, metavar="EPOCHS",
+                    help="linear warmup N epoch lalu cosine decay, di-step per BATCH menuju "
+                         "total langkah (0 = scheduler lama CosineAnnealingLR, tidak berubah)")
     ap.add_argument("--scratch", action="store_true")
     a = ap.parse_args()
     mod = load_model_module(a.model)
@@ -186,14 +208,25 @@ def main():
     tr_names = [n for n in all_names if n not in val_set]
     print(f"device={device} | train={len(tr_names)} val={len(val_names)} | kelas={CLASSES}")
 
-    train_tf = transforms.Compose([
-        transforms.RandomResizedCrop(224, scale=(0.6, 1.0)),
-        transforms.RandomHorizontalFlip(),
-        transforms.ColorJitter(0.3, 0.3, 0.3, 0.05),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        transforms.RandomErasing(p=0.25),
-    ])
+    if a.randaugment:
+        # resep backbone modern: crop lebih agresif + RandAugment + erasing lebih sering
+        train_tf = transforms.Compose([
+            transforms.RandomResizedCrop(224, scale=(0.5, 1.0)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandAugment(num_ops=2, magnitude=9),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            transforms.RandomErasing(p=0.5),
+        ])
+    else:
+        train_tf = transforms.Compose([
+            transforms.RandomResizedCrop(224, scale=(0.6, 1.0)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(0.3, 0.3, 0.3, 0.05),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            transforms.RandomErasing(p=0.25),
+        ])
     tr_dl = DataLoader(FileListDS(a.data, tr_names, train_tf), batch_size=a.bs, shuffle=True,
                        num_workers=a.workers, drop_last=True, persistent_workers=a.workers > 0)
     va_dl = DataLoader(FileListDS(a.data, val_names, get_transform()), batch_size=a.bs,
@@ -208,13 +241,37 @@ def main():
         load_pretrained(model)
 
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=a.wd)
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, a.epochs)
-    lossf = nn.CrossEntropyLoss(label_smoothing=0.1)
+    if a.warmup > 0:
+        # scheduler di-step per BATCH (lihat train_one): hitung dalam langkah
+        total = a.epochs * len(tr_dl)
+        warm = a.warmup * len(tr_dl)
+
+        def lr_lambda(step):
+            if step < warm:
+                return (step + 1) / warm
+            prog = (step - warm) / max(1, total - warm)
+            return 0.5 * (1.0 + math.cos(math.pi * min(1.0, prog)))
+
+        sched = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda)
+        print(f"scheduler: warmup {a.warmup} epoch -> cosine per-batch ({total} langkah)")
+    else:
+        sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, a.epochs)
+
+    if a.mixup > 0:
+        from timm.data import Mixup
+        from timm.loss import SoftTargetCrossEntropy
+        mixup_fn = Mixup(mixup_alpha=a.mixup, cutmix_alpha=a.mixup, prob=1.0,
+                         switch_prob=0.5, label_smoothing=0.1, num_classes=len(CLASSES))
+        lossf = SoftTargetCrossEntropy()
+        print(f"mixup+cutmix alpha={a.mixup} (loss: SoftTargetCrossEntropy)")
+    else:
+        mixup_fn = None
+        lossf = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     best_f1, best_state, bad, hist = -1.0, None, 0, []
     for ep in range(1, a.epochs + 1):
         t0 = time.time()
-        loss = train_one(model, tr_dl, opt, lossf, device, sched)
+        loss = train_one(model, tr_dl, opt, lossf, device, sched, mixup_fn)
         m, _, _ = evaluate_on(model, va_dl, device)
         hist.append({"epoch": ep, "loss": round(loss, 4), "val_macro_f1": round(m["macro_f1"], 4),
                      "val_acc": round(m["accuracy"], 4), "sec": round(time.time() - t0, 1)})
