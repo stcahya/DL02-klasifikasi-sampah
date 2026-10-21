@@ -4,7 +4,6 @@ my_val/
 train_sources.csv
 *.zip
 *.pth
-!submission/model.pth
 runs/
 experiments/out/
 .ipynb_checkpoints/
