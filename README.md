@@ -22,11 +22,11 @@ Deep Learning (IF25-40401) · Teknik Informatika ITERA · Semester Ganjil 2026/2
 
 | Putaran | Commit | Macro-F1 (split validasi lokal) | Macro-F1 (diumumkan asisten) |
 |---------|--------|----------------------------------|------------------------------|
-| Preview 1 (14 Okt) | `e2a1924` | 0,9474 | (menunggu asisten) |
+| Preview 1 (14 Okt) | `e2a1924` | 0,9474 | 0,9283 |
 | Preview 2 (21 Okt) | tag `preview-2` | 0,9762 | (menunggu asisten) |
 | Final (25 Okt)     | | | |
 
-**Bobot model untuk asisten** (`model.pth` 111,4 MB > batas 100 MB git, jadi dilampirkan sebagai asset release — sesuai kebijakan Preview 2/Final). Direct download URL:
+**Bobot model untuk asisten** (`model.pth` > batas 100 MB git, jadi dilampirkan sebagai asset release — sesuai kebijakan Preview 2/Final). Direct download URL:
 
 ```
 https://github.com/stcahya/DL02-klasifikasi-sampah/releases/download/preview-2/model.pth

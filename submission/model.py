@@ -1,4 +1,4 @@
-"""KANDIDAT (bukan submission) — ConvNeXt-Tiny dengan regularisasi modern.
+"""ConvNeXt-Tiny dengan regularisasi modern.
 
 Kenapa ConvNeXt-Tiny: keluarga conv murni yang dimodernisasi (depthwise 7x7, LayerNorm,
 GELU) — beda keluarga dari ResNet-18 (cabang resnet) maupun EfficientNet-B0 (MBConv),
